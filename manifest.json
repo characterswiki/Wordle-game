@@ -1,0 +1,12 @@
+{
+  "name": "Power Language Wordle",
+  "short_name": "Wordle",
+  "description": "Play the daily Wordle puzzle. Guess the hidden 5-letter word in six tries.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#121213",
+  "theme_color": "#6aaa64",
+  "orientation": "portrait",
+  "lang": "en"
+}
