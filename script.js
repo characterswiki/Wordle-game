@@ -1,242 +1,215 @@
-const board = document.getElementById("board")
-const keyboard = document.getElementById("keyboard")
+// ============================
+// Wordle Clone Script.js
+// ============================
 
-let currentRow = 0
-let currentCol = 0
-let guesses = []
+// Board setup
+const rows = 6; // max tries
+const cols = 5; // word length
+let currentRow = 0;
+let currentCol = 0;
 
-const answer = getTodayWord()
+const board = document.getElementById("board");
+const keyboardDiv = document.getElementById("keyboard");
 
-function createBoard(){
+// Optional: daily play lock
+const lastPlayed = localStorage.getItem("lastPlayed");
+const todayStr = new Date().toDateString();
 
-for(let r=0;r<6;r++){
-
-const row=document.createElement("div")
-row.className="row"
-
-for(let c=0;c<5;c++){
-
-const tile=document.createElement("div")
-tile.className="tile"
-
-row.appendChild(tile)
-
+if (lastPlayed === todayStr) {
+  alert("You already played today's Wordle!");
+} else {
+  localStorage.setItem("lastPlayed", todayStr);
 }
 
-board.appendChild(row)
+// ============================
+// Daily Puzzle Word Logic
+// ============================
+function getTodayWord() {
+  const start = new Date("2022-01-01");
+  const today = new Date();
 
+  const diff = Math.floor((today - start) / (1000 * 60 * 60 * 24));
+
+  return answers[diff % answers.length];
 }
 
+const answer = getTodayWord().toLowerCase();
+console.log("Today's word:", answer); // for debugging
+
+// ============================
+// Initialize Board
+// ============================
+function initBoard() {
+  board.innerHTML = "";
+  for (let r = 0; r < rows; r++) {
+    const row = document.createElement("div");
+    row.className = "row";
+    for (let c = 0; c < cols; c++) {
+      const tile = document.createElement("div");
+      tile.className = "tile";
+      row.appendChild(tile);
+    }
+    board.appendChild(row);
+  }
 }
 
-createBoard()
+initBoard();
 
-function createKeyboard(){
+// ============================
+// Keyboard Input
+// ============================
+const keys = "QWERTYUIOPASDFGHJKLZXCVBNM".split("");
+function initKeyboard() {
+  keyboardDiv.innerHTML = "";
+  keys.forEach(k => {
+    const key = document.createElement("button");
+    key.textContent = k;
+    key.className = "key";
+    key.addEventListener("click", () => handleKey(k));
+    keyboardDiv.appendChild(key);
+  });
 
-const rows=[
-"qwertyuiop",
-"asdfghjkl",
-"enterzxcvbnm⌫"
-]
+  // Add Enter & Backspace
+  const enter = document.createElement("button");
+  enter.textContent = "ENTER";
+  enter.className = "key enter";
+  enter.addEventListener("click", () => handleKey("ENTER"));
+  keyboardDiv.appendChild(enter);
 
-rows.forEach(r=>{
-
-const div=document.createElement("div")
-div.className="keyrow"
-
-for(let k of r){
-
-const btn=document.createElement("button")
-
-btn.className="key"
-
-if(k==="enter"||k==="⌫")btn.classList.add("big")
-
-btn.textContent=k.toUpperCase()
-
-btn.onclick=()=>handleKey(k)
-
-div.appendChild(btn)
-
+  const back = document.createElement("button");
+  back.textContent = "⌫";
+  back.className = "key back";
+  back.addEventListener("click", () => handleKey("BACK"));
+  keyboardDiv.appendChild(back);
 }
 
-keyboard.appendChild(div)
+initKeyboard();
 
-})
+// ============================
+// Handle Key Press
+// ============================
+function handleKey(key) {
+  const row = board.children[currentRow];
+  const tiles = row.children;
 
+  if (key === "ENTER") {
+    submitGuess();
+    return;
+  }
+
+  if (key === "BACK") {
+    if (currentCol > 0) {
+      currentCol--;
+      tiles[currentCol].textContent = "";
+    }
+    return;
+  }
+
+  if (currentCol < cols && key.length === 1) {
+    tiles[currentCol].textContent = key;
+    currentCol++;
+  }
 }
 
-createKeyboard()
+// ============================
+// Submit Guess
+// ============================
+function submitGuess() {
+  const row = board.children[currentRow];
+  let guess = "";
+  for (let tile of row.children) {
+    guess += tile.textContent.toLowerCase();
+  }
 
-function handleKey(key){
+  if (guess.length < cols) {
+    alert("Not enough letters");
+    return;
+  }
 
-if(key==="⌫"){
+  if (!words.includes(guess)) {
+    alert("Word not in list");
+    return;
+  }
 
-if(currentCol>0){
+  // Check letters and color tiles
+  checkWord(guess, row);
 
-currentCol--
+  if (guess === answer) {
+    alert("🎉 Congratulations! You solved today's Wordle!");
+    return;
+  }
 
-updateTile("")
+  currentRow++;
+  currentCol = 0;
 
+  if (currentRow === rows) {
+    alert(`😢 Game over! Today's word was: ${answer.toUpperCase()}`);
+  }
 }
 
-return
+// ============================
+// Check Word & Color Tiles
+// ============================
+function checkWord(guess, row) {
+  const answerArray = answer.split("");
+  const guessArray = guess.split("");
 
+  // First pass: green letters
+  const colorTiles = Array(cols).fill("grey");
+  for (let i = 0; i < cols; i++) {
+    if (guessArray[i] === answerArray[i]) {
+      colorTiles[i] = "green";
+      answerArray[i] = null; // remove matched
+      guessArray[i] = null;
+    }
+  }
+
+  // Second pass: yellow letters
+  for (let i = 0; i < cols; i++) {
+    if (guessArray[i] && answerArray.includes(guessArray[i])) {
+      colorTiles[i] = "yellow";
+      const index = answerArray.indexOf(guessArray[i]);
+      answerArray[index] = null;
+    }
+  }
+
+  // Apply colors to tiles
+  for (let i = 0; i < cols; i++) {
+    row.children[i].classList.add(colorTiles[i]);
+  }
+
+  // Optional: update keyboard colors
+  updateKeyboard(guess, colorTiles);
 }
 
-if(key==="enter"){
+// ============================
+// Update Keyboard Colors
+// ============================
+function updateKeyboard(guess, colors) {
+  guess.split("").forEach((letter, i) => {
+    const key = Array.from(keyboardDiv.children).find(
+      k => k.textContent.toLowerCase() === letter
+    );
+    if (!key) return;
 
-submitGuess()
-
-return
-
+    // priority: green > yellow > grey
+    if (colors[i] === "green") {
+      key.classList.remove("yellow", "grey");
+      key.classList.add("green");
+    } else if (colors[i] === "yellow" && !key.classList.contains("green")) {
+      key.classList.remove("grey");
+      key.classList.add("yellow");
+    } else if (!key.classList.contains("green") && !key.classList.contains("yellow")) {
+      key.classList.add("grey");
+    }
+  });
 }
 
-if(currentCol<5){
-
-updateTile(key)
-
-currentCol++
-
-}
-
-}
-
-function updateTile(letter){
-
-const row=board.children[currentRow]
-
-const tile=row.children[currentCol]
-
-tile.textContent=letter
-
-}
-
-function submitGuess(){
-
-const row=board.children[currentRow]
-
-let guess=""
-
-for(let t of row.children){
-
-guess+=t.textContent.toLowerCase()
-
-}
-
-if(!words.includes(guess)){
-
-alert("Word not in list")
-
-return
-
-}
-
-checkWord(guess,row)
-
-guesses.push(guess)
-
-if(guess===answer){
-
-saveStats(true)
-
-setTimeout(()=>shareScore(),500)
-
-return
-
-}
-
-currentRow++
-currentCol=0
-
-if(currentRow===6){
-
-saveStats(false)
-
-alert("Answer: "+answer)
-
-}
-
-}
-
-function checkWord(guess,row){
-
-for(let i=0;i<5;i++){
-
-const tile=row.children[i]
-
-tile.classList.add("flip")
-
-setTimeout(()=>{
-
-if(guess[i]===answer[i]){
-
-tile.classList.add("green")
-
-}
-
-else if(answer.includes(guess[i])){
-
-tile.classList.add("yellow")
-
-}
-
-else{
-
-tile.classList.add("gray")
-
-}
-
-},300)
-
-}
-
-}
-
-function getTodayWord(){
-
-const start=new Date("2022-01-01")
-
-const today=new Date()
-
-const diff=Math.floor((today-start)/(1000*60*60*24))
-
-return answers[diff%answers.length]
-
-}
-
-function saveStats(win){
-
-let stats=JSON.parse(localStorage.getItem("stats"))||{wins:0,played:0}
-
-stats.played++
-
-if(win)stats.wins++
-
-localStorage.setItem("stats",JSON.stringify(stats))
-
-}
-
-function shareScore(){
-
-let result="Wordle Clone\n"
-
-guesses.forEach(g=>{
-
-for(let i=0;i<5;i++){
-
-if(g[i]===answer[i])result+="🟩"
-else if(answer.includes(g[i]))result+="🟨"
-else result+="⬛"
-
-}
-
-result+="\n"
-
-})
-
-navigator.clipboard.writeText(result)
-
-alert("Score copied!")
-
-}
+// ============================
+// Optional: Keyboard Input from Physical Keys
+// ============================
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter") handleKey("ENTER");
+  else if (e.key === "Backspace") handleKey("BACK");
+  else if (/^[a-zA-Z]$/.test(e.key)) handleKey(e.key.toUpperCase());
+});
